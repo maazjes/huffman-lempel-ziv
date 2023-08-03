@@ -1,28 +1,36 @@
 from __future__ import annotations
 import heapq
-from typing import Type
 
 
 class node:
     def __init__(
         self,
-        freq: int,
+        freq: int = -1,
         char: str = "",
-        left: Type[node] = None,
-        right: Type[node] = None,
+        left: node | None = None,
+        right: node | None = None,
     ):
         self.freq = freq
         self.char = char
         self.left = left
         self.right = right
 
-    def __lt__(self, nxt: node):
+    def __lt__(self, nxt: node) -> bool:
         return self.freq < nxt.freq
 
 
-def huffman_tree(freqs: dict):
-    nodes: list[node] = []
+def printNodes(node: node, val: str = "") -> None:
+    if node.left:
+        printNodes(node.left, val + "0")
+    if node.right:
+        printNodes(node.right, val + "1")
 
+    if not node.left and not node.right:
+        print(f"{node.char} -> {val}")
+
+
+def create_tree(freqs: dict[str, int]) -> node:
+    nodes: list[node] = []
     keys = list(freqs)
 
     for i in range(len(keys)):
@@ -31,8 +39,8 @@ def huffman_tree(freqs: dict):
     while len(nodes) > 1:
         left = heapq.heappop(nodes)
         right = heapq.heappop(nodes)
-        newNode = node(left.freq + right.freq, "", left, right)
 
+        newNode = node(left.freq + right.freq, "", left, right)
         heapq.heappush(nodes, newNode)
 
     return nodes[0]
@@ -44,8 +52,8 @@ def huffman_codes(
     code: str = "",
     shape: str = "",
     chars: str = "",
-):
-    if not node.left and not node.right:
+) -> tuple[dict[str, str], str, str]:
+    if not node.left or not node.right:
         codes[node.char] = code
         return (codes, shape + "1", chars + node.char)
 
@@ -59,21 +67,20 @@ def huffman_codes(
     return (codes, info_right[1], info_right[2])
 
 
-def calc_freqs(string: str):
+def calc_freqs(string: str) -> dict[str, int]:
     freqs = {}
 
     for char in string:
         if char not in freqs:
             freqs[char] = 0
-
         freqs[char] += 1
 
     return freqs
 
 
-def huffman_code(string: str):
+def encode(string: str) -> str:
     freqs = calc_freqs(string)
-    root = huffman_tree(freqs)
+    root = create_tree(freqs)
 
     (dict, shape, chars) = huffman_codes(root)
 
@@ -93,21 +100,21 @@ def huffman_code(string: str):
     return extra + shape + binary_chars + encoded
 
 
-def tree_from_shape(code: str, i: int, currentNode: node):
-    if code[i] == "1":
+def tree_from_shape(shape: str, i: int, currentNode: node) -> int:
+    if shape[i] == "1":
         return i
 
-    currentNode.left = node(-1)
-    i = tree_from_shape(code, i + 1, currentNode.left)
+    currentNode.left = node()
+    i = tree_from_shape(shape, i + 1, currentNode.left)
 
-    currentNode.right = node(-1)
-    i = tree_from_shape(code, i + 1, currentNode.right)
+    currentNode.right = node()
+    i = tree_from_shape(shape, i + 1, currentNode.right)
 
     return i
 
 
-def fill_leaves(code, currentNode: node, i: int = 0):
-    if not currentNode.left and not currentNode.right:
+def fill_leaves(code: str, currentNode: node, i: int = 0) -> int:
+    if not currentNode.left or not currentNode.right:
         currentNode.char = chr(int(code[i : i + 8], 2))
         return i + 8
 
@@ -115,67 +122,67 @@ def fill_leaves(code, currentNode: node, i: int = 0):
     return fill_leaves(code, currentNode.right, i)
 
 
-def char_from_tree(code: str, i, root: node):
+def char_from_code(code: str, i: int, root: node) -> tuple[str, int]:
     currentNode = root
+
     for j in range(i, len(code) + 1):
-        if currentNode.char:
+        if not currentNode.left or not currentNode.right:
             return (currentNode.char, j)
-        if code[j] == "0":
+
+        if currentNode.left and code[j] == "0":
             currentNode = currentNode.left
-        if code[j] == "1":
+        if currentNode.right and code[j] == "1":
             currentNode = currentNode.right
 
+    raise Exception("Incorrect code. Leaf node not reached.")
 
-def string_from_tree(code: str, root: node):
+
+def string_from_tree(code: str, root: node) -> str:
     i = 0
     string = ""
 
     while i < len(code):
-        (char, j) = char_from_tree(code, i, root)
+        (char, j) = char_from_code(code, i, root)
         i = j
         string += char
 
     return string
 
 
-def printNodes(node: node, val=""):
-    if node.left:
-        printNodes(node.left, val + "0")
-    if node.right:
-        printNodes(node.right, val + "1")
-
-    if not node.left and not node.right:
-        print(f"{node.char} -> {val}")
-
-
-def huffman_decode(code: str):
+def decode(code: str) -> str:
     extra = int(code[:4], 2)
     rest = code[4:]
-    root = node(-1)
-    index = tree_from_shape(rest, 0, root)
-    rest = rest[index + 1 :]
-    x = fill_leaves(rest, root)
-    rest = rest[x:]
+    root = node()
+
+    tree_size = tree_from_shape(rest, 0, root) + 1
+    rest = rest[tree_size:]
+
+    leaves = fill_leaves(rest, root)
+    rest = rest[leaves:]
+
     rest = rest[: len(rest) - 8] + rest[len(rest) - 8 + extra :]
+
     return string_from_tree(rest, root)
 
 
-def to_bytes(data):
+def to_bytes(data: str) -> bytes:
     b = bytearray()
+
     for i in range(0, len(data), 8):
         b.append(int(data[i : i + 8], 2))
+
     return bytes(b)
 
 
 s = "test string"
 
-encoded = huffman_code(s)
+encoded = encode(s)
 
 with open("test.bin", "wb") as f:
     f.write(to_bytes(encoded))
 
-with open("test.txt", "w") as f:
-    f.write(s)
+with open("test.txt", "w") as fs:
+    fs.write(s)
 
 encoded = "".join(f"{n:08b}" for n in open("test.bin", "rb").read())
-print(huffman_decode(encoded))
+print(decode(encoded))

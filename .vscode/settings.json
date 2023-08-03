@@ -1,4 +1,6 @@
 {
     "editor.defaultFormatter": "ms-python.black-formatter",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true
 }
