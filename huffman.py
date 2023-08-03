@@ -2,24 +2,24 @@ from __future__ import annotations
 import heapq
 
 
-class node:
+class Node:
     def __init__(
         self,
         freq: int = -1,
         char: str = "",
-        left: node | None = None,
-        right: node | None = None,
+        left: Node | None = None,
+        right: Node | None = None,
     ):
         self.freq = freq
         self.char = char
         self.left = left
         self.right = right
 
-    def __lt__(self, nxt: node) -> bool:
+    def __lt__(self, nxt: Node) -> bool:
         return self.freq < nxt.freq
 
 
-def printNodes(node: node, val: str = "") -> None:
+def printNodes(node: Node, val: str = "") -> None:
     if node.left:
         printNodes(node.left, val + "0")
     if node.right:
@@ -29,25 +29,25 @@ def printNodes(node: node, val: str = "") -> None:
         print(f"{node.char} -> {val}")
 
 
-def create_tree(freqs: dict[str, int]) -> node:
-    nodes: list[node] = []
+def create_tree(freqs: dict[str, int]) -> Node:
+    nodes: list[Node] = []
     keys = list(freqs)
 
     for i in range(len(keys)):
-        heapq.heappush(nodes, node(freqs[keys[i]], keys[i]))
+        heapq.heappush(nodes, Node(freqs[keys[i]], keys[i]))
 
     while len(nodes) > 1:
         left = heapq.heappop(nodes)
         right = heapq.heappop(nodes)
 
-        newNode = node(left.freq + right.freq, "", left, right)
+        newNode = Node(left.freq + right.freq, "", left, right)
         heapq.heappush(nodes, newNode)
 
     return nodes[0]
 
 
 def huffman_codes(
-    node: node,
+    node: Node,
     codes: dict[str, str] = {},
     code: str = "",
     shape: str = "",
@@ -100,20 +100,20 @@ def encode(string: str) -> str:
     return extra + shape + binary_chars + encoded
 
 
-def tree_from_shape(shape: str, i: int, currentNode: node) -> int:
+def tree_from_shape(shape: str, i: int, currentNode: Node) -> int:
     if shape[i] == "1":
         return i
 
-    currentNode.left = node()
+    currentNode.left = Node()
     i = tree_from_shape(shape, i + 1, currentNode.left)
 
-    currentNode.right = node()
+    currentNode.right = Node()
     i = tree_from_shape(shape, i + 1, currentNode.right)
 
     return i
 
 
-def fill_leaves(code: str, currentNode: node, i: int = 0) -> int:
+def fill_leaves(code: str, currentNode: Node, i: int = 0) -> int:
     if not currentNode.left or not currentNode.right:
         currentNode.char = chr(int(code[i : i + 8], 2))
         return i + 8
@@ -122,7 +122,7 @@ def fill_leaves(code: str, currentNode: node, i: int = 0) -> int:
     return fill_leaves(code, currentNode.right, i)
 
 
-def char_from_code(code: str, i: int, root: node) -> tuple[str, int]:
+def char_from_code(code: str, i: int, root: Node) -> tuple[str, int]:
     currentNode = root
 
     for j in range(i, len(code) + 1):
@@ -137,7 +137,7 @@ def char_from_code(code: str, i: int, root: node) -> tuple[str, int]:
     raise Exception("Incorrect code. Leaf node not reached.")
 
 
-def string_from_tree(code: str, root: node) -> str:
+def string_from_tree(code: str, root: Node) -> str:
     i = 0
     string = ""
 
@@ -152,7 +152,7 @@ def string_from_tree(code: str, root: node) -> str:
 def decode(code: str) -> str:
     extra = int(code[:4], 2)
     rest = code[4:]
-    root = node()
+    root = Node()
 
     tree_size = tree_from_shape(rest, 0, root) + 1
     rest = rest[tree_size:]
