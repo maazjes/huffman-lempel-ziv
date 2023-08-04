@@ -19,6 +19,7 @@ class Node:
         return self.freq < nxt.freq
 
 
+# Utility function for printing leaf node values.
 def printNodes(node: Node, val: str = "") -> None:
     if node.left:
         printNodes(node.left, val + "0")
@@ -29,6 +30,8 @@ def printNodes(node: Node, val: str = "") -> None:
         print(f"{node.char} -> {val}")
 
 
+# Creates a new tree from given frequencies
+# acccording to Huffman coding.
 def create_tree(freqs: dict[str, int]) -> Node:
     nodes: list[Node] = []
     keys = list(freqs)
@@ -46,6 +49,11 @@ def create_tree(freqs: dict[str, int]) -> Node:
     return nodes[0]
 
 
+# Returns a dictionary containing symbols as keys
+# and their corresponding codes as values. Also
+# returns the shape of the tree as 0's (regular node)
+# and 1's (leaf node) and the characters corresponding
+# to the 1's in the same order.
 def huffman_codes(
     node: Node,
     codes: dict[str, str] = {},
@@ -67,6 +75,7 @@ def huffman_codes(
     return (codes, info_right[1], info_right[2])
 
 
+# Calculate frequencies of characters in a given string.
 def calc_freqs(string: str) -> dict[str, int]:
     freqs = {}
 
@@ -78,6 +87,7 @@ def calc_freqs(string: str) -> dict[str, int]:
     return freqs
 
 
+# Main function for encoding a string with Huffman coding.
 def encode(string: str) -> str:
     freqs = calc_freqs(string)
     root = create_tree(freqs)
@@ -87,19 +97,23 @@ def encode(string: str) -> str:
     encoded = ""
     binary_chars = ""
 
+    # Encode characters in the given string.
     for char in string:
         encoded += dict[char]
 
+    # Convert leaf characters to binary.
     for char in chars:
         binary_chars += format(ord(char), "08b")
 
     final = shape + binary_chars + encoded
 
+    # Count how many extra 0's will be added when writing to file.
     extra = format(8 - ((len(final) + 4) % 8), "04b")
 
     return extra + shape + binary_chars + encoded
 
 
+# Creates a tree from a given shape consisting of 0's and 1's.
 def tree_from_shape(shape: str, i: int, currentNode: Node) -> int:
     if shape[i] == "1":
         return i
@@ -113,6 +127,7 @@ def tree_from_shape(shape: str, i: int, currentNode: Node) -> int:
     return i
 
 
+# Fills the leaves of a tree with given 8-bit characters.
 def fill_leaves(code: str, currentNode: Node, i: int = 0) -> int:
     if not currentNode.left or not currentNode.right:
         currentNode.char = chr(int(code[i : i + 8], 2))
@@ -122,6 +137,7 @@ def fill_leaves(code: str, currentNode: Node, i: int = 0) -> int:
     return fill_leaves(code, currentNode.right, i)
 
 
+# Decodes one character encoded with Huffman coding.
 def char_from_code(code: str, i: int, root: Node) -> tuple[str, int]:
     currentNode = root
 
@@ -137,6 +153,7 @@ def char_from_code(code: str, i: int, root: Node) -> tuple[str, int]:
     raise Exception("Incorrect code. Leaf node not reached.")
 
 
+# Decodes a string encoded with Huffman coding.
 def string_from_tree(code: str, root: Node) -> str:
     i = 0
     string = ""
@@ -149,6 +166,7 @@ def string_from_tree(code: str, root: Node) -> str:
     return string
 
 
+# Main function for decoding a string encoded with Huffman coding.
 def decode(code: str) -> str:
     extra = int(code[:4], 2)
     rest = code[4:]
@@ -160,6 +178,7 @@ def decode(code: str) -> str:
     leaves = fill_leaves(rest, root)
     rest = rest[leaves:]
 
+    # Delete extra zeros that were added when writing to file.
     rest = rest[: len(rest) - 8] + rest[len(rest) - 8 + extra :]
 
     return string_from_tree(rest, root)
