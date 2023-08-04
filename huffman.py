@@ -20,11 +20,11 @@ class Node:
 
 
 # Utility function for printing leaf node values.
-def printNodes(node: Node, val: str = "") -> None:
+def print_nodes(node: Node, val: str = "") -> None:
     if node.left:
-        printNodes(node.left, val + "0")
+        print_nodes(node.left, val + "0")
     if node.right:
-        printNodes(node.right, val + "1")
+        print_nodes(node.right, val + "1")
 
     if not node.left and not node.right:
         print(f"{node.char} -> {val}")
