@@ -1,5 +1,6 @@
 from __future__ import annotations
 import heapq
+from util import string_to_bytes, bytes_to_string
 
 
 class Node:
@@ -184,24 +185,18 @@ def decode(code: str) -> str:
     return string_from_tree(rest, root)
 
 
-def to_bytes(data: str) -> bytes:
-    b = bytearray()
-
-    for i in range(0, len(data), 8):
-        b.append(int(data[i : i + 8], 2))
-
-    return bytes(b)
-
-
-s = "test string"
+s = "testing"
 
 encoded = encode(s)
 
+print("encoded " + encoded)
+
 with open("test.bin", "wb") as f:
-    f.write(to_bytes(encoded))
+    f.write(string_to_bytes(encoded))
 
 with open("test.txt", "w") as fs:
     fs.write(s)
 
-encoded = "".join(f"{n:08b}" for n in open("test.bin", "rb").read())
+encoded = bytes_to_string(open("test.bin", "rb").read())
+print("encoded " + encoded)
 print(decode(encoded))
