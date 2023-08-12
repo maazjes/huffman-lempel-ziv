@@ -1,39 +1,11 @@
-from __future__ import annotations
 import heapq
 from util import string_to_bytes
 from BitReader import BitReader
 import typing
+from Node import Node
 
 
 CHUNK_SIZE = 4000
-
-
-class Node:
-    def __init__(
-        self,
-        freq: int = -1,
-        char: str = "",
-        left: Node | None = None,
-        right: Node | None = None,
-    ):
-        self.freq = freq
-        self.char = char
-        self.left = left
-        self.right = right
-
-    def __lt__(self, nxt: Node) -> bool:
-        return self.freq < nxt.freq
-
-
-# Utility function for printing leaf node values.
-def print_nodes(node: Node, val: str = "") -> None:
-    if node.left:
-        print_nodes(node.left, val + "0")
-    if node.right:
-        print_nodes(node.right, val + "1")
-
-    if not node.left and not node.right:
-        print(f"{node.char} -> {val}")
 
 
 # Create a new tree from given frequencies
