@@ -1,78 +1,116 @@
-from util import string_to_bytes, bytes_to_string
+from util import string_to_bytes
+from BitReader import BitReader
 
 
-# Main function for encoding a string with LZW.
-def encode(string: str) -> str:
+CHUNK_SIZE = 4000
+
+
+# Encode a text file with LZW.
+def encode(file: str) -> None:
     dict = {}
+
     for i in range(256):
         dict[chr(i)] = i
 
     substr = ""
-    result = ""
+    encoded = 8 * "0"
+    encoded_bits = b""
 
-    for char in string:
-        newSubstr = substr + char
+    with open(file, "r", encoding="latin-1") as f:
+        with open(file.split(".")[0] + ".bin", "wb") as fb:
+            while True:
+                chars = f.read(CHUNK_SIZE)
 
-        if newSubstr in dict:
-            substr = newSubstr
-        else:
-            result += format(
-                dict[substr], "0" + str(len(format(len(dict) + 1, "b"))) + "b"
-            )
-            dict[newSubstr] = len(dict) + 1
-            substr = char
+                if not chars:
+                    if len(substr) > 0:
+                        encoded += format(
+                            dict[substr],
+                            "0" + str(len(format(len(dict) + 1, "b"))) + "b",
+                        )
 
-    if len(substr) > 0:
-        result += format(dict[substr], "0" + str(len(format(len(dict) + 1, "b"))) + "b")
+                    extra = len(encoded) % 8
 
-    extra = format(8 - ((len(result) + 4) % 8), "04b")
+                    if len(encoded) > 8:
+                        extra = 8 - extra
 
-    return extra + result
+                    fb.write(encoded_bits)
+                    fb.write(string_to_bytes(encoded))
+                    fb.seek(0)
+                    fb.write(string_to_bytes(format(extra, "08b")))
+
+                    break
+
+                for char in chars:
+                    newSubstr = substr + char
+
+                    if newSubstr in dict:
+                        substr = newSubstr
+                    else:
+                        encoded += format(
+                            dict[substr],
+                            "0" + str(len(format(len(dict), "b"))) + "b",
+                        )
+                        dict[newSubstr] = len(dict)
+                        substr = char
+
+                if len(encoded) % 8 == 0:
+                    encoded_bits += string_to_bytes(encoded)
+                    encoded = ""
+
+                if len(encoded_bits) >= CHUNK_SIZE:
+                    fb.write(encoded_bits)
+                    encoded_bits = b""
 
 
-# Main function for decoding a string with LZW.
-def decode(code: str) -> str:
+# Decode a text file encoded with LZW.
+def decode(file: str) -> None:
     dict = {}
+
     for i in range(256):
         dict[i] = chr(i)
 
-    extra = int(code[:4], 2)
-    code = code[4 : len(code) - 8] + code[len(code) - 8 + extra :]
+    with open(file, "rb") as fb:
+        br = BitReader(fb, CHUNK_SIZE)
+        extra = int(br.read(8), 2)
+        bits = br.read(len(format(len(dict), "b")))
+        substr = dict[int(bits, 2)]
+        decoded = substr
 
-    bits = code[0 : len(format(len(dict) + 1, "b"))]
-    substr = dict[int(bits, 2)]
-    result = substr
+        with open(file.split(".")[0] + "_encoded.txt", "w") as f:
+            while True:
+                nextBits = len(format(len(dict) + 1, "b"))
+                lastByteBits = 8 - (len(br.buffer) * 8 - br.index - nextBits)
 
-    i = len(bits)
-    while i < len(code):
-        nextBits = len(format(len(dict) + 2, "b"))
-        nextCode = int(code[i : i + nextBits], 2)
-        newSubstr = ""
+                next = ""
 
-        if nextCode in dict:
-            newSubstr = dict[nextCode]
-        else:
-            newSubstr = substr + substr[0]
+                if lastByteBits > 0 and extra >= 0:
+                    next = br.read(nextBits - lastByteBits)
+                    br.read(extra)
+                    next += br.read(lastByteBits)
+                    extra = -1
+                else:
+                    next = br.read(nextBits)
 
-        result += newSubstr
-        dict[len(dict) + 1] = substr + newSubstr[0]
-        substr = newSubstr
+                if not next:
+                    f.write(decoded)
+                    break
 
-        i += nextBits
+                nextCode = int(next, 2)
+                newSubstr = ""
 
-    return result
+                if nextCode in dict:
+                    newSubstr = dict[nextCode]
+                else:
+                    newSubstr = substr + substr[0]
+
+                decoded += newSubstr
+                dict[len(dict)] = substr + newSubstr[0]
+                substr = newSubstr
+
+                if len(decoded) >= CHUNK_SIZE:
+                    f.write(decoded)
+                    decoded = ""
 
 
-s = "testing"
-encoded = encode(s)
-print("encoded " + encoded)
-
-with open("test1.bin", "wb") as f:
-    f.write(string_to_bytes(encoded))
-
-with open("test.txt", "w") as ft:
-    ft.write(s)
-
-encoded = bytes_to_string(open("test1.bin", "rb").read())
-print("encoded " + encoded)
-print(decode(encoded))
+encode("testa.txt")
+decode("testa.bin")

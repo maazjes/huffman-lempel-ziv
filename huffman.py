@@ -1,6 +1,11 @@
 from __future__ import annotations
 import heapq
-from util import string_to_bytes, bytes_to_string
+from util import string_to_bytes
+from BitReader import BitReader
+import typing
+
+
+CHUNK_SIZE = 4000
 
 
 class Node:
@@ -31,7 +36,7 @@ def print_nodes(node: Node, val: str = "") -> None:
         print(f"{node.char} -> {val}")
 
 
-# Creates a new tree from given frequencies
+# Create a new tree from given frequencies
 # acccording to Huffman coding.
 def create_tree(freqs: dict[str, int]) -> Node:
     nodes: list[Node] = []
@@ -50,9 +55,9 @@ def create_tree(freqs: dict[str, int]) -> Node:
     return nodes[0]
 
 
-# Returns a dictionary containing symbols as keys
+# Return a dictionary containing symbols as keys
 # and their corresponding codes as values. Also
-# returns the shape of the tree as 0's (regular node)
+# return the shape of the tree as 0's (regular node)
 # and 1's (leaf node) and the characters corresponding
 # to the 1's in the same order.
 def huffman_codes(
@@ -76,127 +81,140 @@ def huffman_codes(
     return (codes, info_right[1], info_right[2])
 
 
-# Calculate frequencies of characters in a given string.
-def calc_freqs(string: str) -> dict[str, int]:
+# Calculate frequencies of characters in a given text file.
+def calc_freqs(f: typing.TextIO) -> dict[str, int]:
     freqs = {}
 
-    for char in string:
-        if char not in freqs:
-            freqs[char] = 0
-        freqs[char] += 1
+    while True:
+        chars = f.read(CHUNK_SIZE)
+
+        if not chars:
+            break
+
+        for char in chars:
+            if char not in freqs:
+                freqs[char] = 0
+            freqs[char] += 1
 
     return freqs
 
 
-# Main function for encoding a string with Huffman coding.
-def encode(string: str) -> str:
-    freqs = calc_freqs(string)
-    root = create_tree(freqs)
+# Encode a text file with Huffman coding.
+def encode(file: str) -> None:
+    with open(file, "r", encoding="latin-1") as f:
+        freqs = calc_freqs(f)
+        f.seek(0)
+        root = create_tree(freqs)
 
-    (dict, shape, chars) = huffman_codes(root)
+        (dict, shape, chars) = huffman_codes(root)
 
-    encoded = ""
-    binary_chars = ""
+        binary_chars = ""
 
-    # Encode characters in the given string.
-    for char in string:
-        encoded += dict[char]
+        # Convert leaf characters to binary.
+        for char in chars:
+            binary_chars += format(ord(char), "08b")
 
-    # Convert leaf characters to binary.
-    for char in chars:
-        binary_chars += format(ord(char), "08b")
+        encoded = 8 * "0" + shape + binary_chars
+        encoded_bits = b""
 
-    final = shape + binary_chars + encoded
+        with open(file.split(".")[0] + ".bin", "wb") as fb:
+            while True:
+                chars = f.read(CHUNK_SIZE)
 
-    # Count how many extra 0's will be added when writing to file.
-    extra = format(8 - ((len(final) + 4) % 8), "04b")
+                if not chars:
+                    # Count how many extra 0's will be added when writing to file.
+                    extra = len(encoded) % 8
 
-    return extra + shape + binary_chars + encoded
+                    if len(encoded) > 8:
+                        extra = 8 - extra
+
+                    fb.write(encoded_bits)
+                    fb.write(string_to_bytes(encoded))
+                    fb.seek(0)
+                    fb.write(string_to_bytes(format(extra, "08b")))
+
+                    break
+
+                for char in chars:
+                    encoded += dict[char]
+
+                # Convert strings to bytes when possible.
+                if len(encoded) % 8 == 0:
+                    encoded_bits += string_to_bytes(encoded)
+                    encoded = ""
+
+                if len(encoded_bits) >= CHUNK_SIZE:
+                    fb.write(encoded_bits)
+                    encoded_bits = b""
 
 
-# Creates a tree from a given shape consisting of 0's and 1's.
-def tree_from_shape(shape: str, i: int, currentNode: Node) -> int:
-    if shape[i] == "1":
-        return i
+# Create a tree from a given shape consisting of 0's and 1's.
+def tree_from_shape(br: BitReader, currentNode: Node) -> None:
+    next_bit = br.read(1)
+
+    if next_bit == "1":
+        return
 
     currentNode.left = Node()
-    i = tree_from_shape(shape, i + 1, currentNode.left)
+    tree_from_shape(br, currentNode.left)
 
     currentNode.right = Node()
-    i = tree_from_shape(shape, i + 1, currentNode.right)
+    tree_from_shape(br, currentNode.right)
 
-    return i
+    return
 
 
-# Fills the leaves of a tree with given 8-bit characters.
-def fill_leaves(code: str, currentNode: Node, i: int = 0) -> int:
+# Fill the leaves of a tree with given 8-bit characters.
+def fill_leaves(fb: BitReader, currentNode: Node) -> None:
     if not currentNode.left or not currentNode.right:
-        currentNode.char = chr(int(code[i : i + 8], 2))
-        return i + 8
+        bits = fb.read(8)
+        currentNode.char = chr(int(bits, 2))
+        return
 
-    i = fill_leaves(code, currentNode.left, i)
-    return fill_leaves(code, currentNode.right, i)
-
-
-# Decodes one character encoded with Huffman coding.
-def char_from_code(code: str, i: int, root: Node) -> tuple[str, int]:
-    currentNode = root
-
-    for j in range(i, len(code) + 1):
-        if not currentNode.left or not currentNode.right:
-            return (currentNode.char, j)
-
-        if currentNode.left and code[j] == "0":
-            currentNode = currentNode.left
-        if currentNode.right and code[j] == "1":
-            currentNode = currentNode.right
-
-    raise Exception("Incorrect code. Leaf node not reached.")
+    fill_leaves(fb, currentNode.left)
+    fill_leaves(fb, currentNode.right)
 
 
-# Decodes a string encoded with Huffman coding.
-def string_from_tree(code: str, root: Node) -> str:
-    i = 0
-    string = ""
+# Decode a text file encoded with Huffman coding.
+def decode(file: str) -> None:
+    with open(file, "rb") as fb:
+        root = Node()
+        br = BitReader(fb, CHUNK_SIZE)
+        extra = int(br.read(8), 2)
 
-    while i < len(code):
-        (char, j) = char_from_code(code, i, root)
-        i = j
-        string += char
+        tree_from_shape(br, root)
+        fill_leaves(br, root)
 
-    return string
+        decoded = ""
+        currentNode = root
+
+        with open(file.split(".")[0] + "_encoded.txt", "w") as f:
+            while True:
+                # Skip extra 0's.
+                if len(br.buffer) * 8 - br.index <= 8 and extra >= 0:
+                    br.read(extra)
+                    extra = -1
+
+                next_bit = br.read(1)
+
+                if not next_bit:
+                    f.write(decoded)
+                    break
+
+                if next_bit == "0" and currentNode.left:
+                    currentNode = currentNode.left
+
+                if next_bit == "1" and currentNode.right:
+                    currentNode = currentNode.right
+
+                if not currentNode.left and not currentNode.right:
+                    decoded += currentNode.char
+                    currentNode = root
+
+                if len(decoded) >= CHUNK_SIZE:
+                    f.write(decoded)
+                    decoded = ""
 
 
-# Main function for decoding a string encoded with Huffman coding.
-def decode(code: str) -> str:
-    extra = int(code[:4], 2)
-    rest = code[4:]
-    root = Node()
-
-    tree_size = tree_from_shape(rest, 0, root) + 1
-    rest = rest[tree_size:]
-
-    leaves = fill_leaves(rest, root)
-    rest = rest[leaves:]
-
-    # Delete extra zeros that were added when writing to file.
-    rest = rest[: len(rest) - 8] + rest[len(rest) - 8 + extra :]
-
-    return string_from_tree(rest, root)
-
-
-s = "testing"
-
-encoded = encode(s)
-
-print("encoded " + encoded)
-
-with open("test.bin", "wb") as f:
-    f.write(string_to_bytes(encoded))
-
-with open("test.txt", "w") as fs:
-    fs.write(s)
-
-encoded = bytes_to_string(open("test.bin", "rb").read())
-print("encoded " + encoded)
-print(decode(encoded))
+encode("testa.txt")
+decode("testa.bin")
