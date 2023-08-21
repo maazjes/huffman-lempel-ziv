@@ -3,9 +3,10 @@ from util import string_to_bytes
 from BitReader import BitReader
 import typing
 from Node import Node
+import os
 
 
-CHUNK_SIZE = 4000
+CHUNK_SIZE = 4 * 10**8
 
 
 # Create a new tree from given frequencies
@@ -34,7 +35,7 @@ def create_tree(freqs: dict[str, int]) -> Node:
 # to the 1's in the same order.
 def huffman_codes(
     node: Node,
-    codes: dict[str, str] = {},
+    codes: dict[str, str],
     code: str = "",
     shape: str = "",
     chars: str = "",
@@ -72,35 +73,38 @@ def calc_freqs(f: typing.TextIO) -> dict[str, int]:
 
 
 # Encode a text file with Huffman coding.
-def encode(file: str) -> None:
-    with open(file, "r", encoding="latin-1") as f:
+def encode(file: str, target: str = "") -> None:
+    with open(file, "r") as f:
         freqs = calc_freqs(f)
         f.seek(0)
         root = create_tree(freqs)
 
-        (dict, shape, chars) = huffman_codes(root)
+        (dict, shape, chars) = huffman_codes(root, {})
 
         binary_chars = ""
 
         # Convert leaf characters to binary.
         for char in chars:
-            binary_chars += format(ord(char), "08b")
+            binary_chars += format(ord(char), "016b")
 
         encoded = 8 * "0" + shape + binary_chars
-        encoded_bits = b""
 
-        with open(file.split(".")[0] + ".bin", "wb") as fb:
+        filename = target
+
+        if not filename:
+            filename = file.split(".")[0] + ".bin"
+
+        with open(filename, "wb") as fb:
             while True:
                 chars = f.read(CHUNK_SIZE)
 
                 if not chars:
                     # Count how many extra 0's will be added when writing to file.
-                    extra = len(encoded) % 8
+                    extra = 8 - (len(encoded) % 8)
 
-                    if len(encoded) > 8:
-                        extra = 8 - extra
+                    if extra == 8:
+                        extra = 0
 
-                    fb.write(encoded_bits)
                     fb.write(string_to_bytes(encoded))
                     fb.seek(0)
                     fb.write(string_to_bytes(format(extra, "08b")))
@@ -110,14 +114,8 @@ def encode(file: str) -> None:
                 for char in chars:
                     encoded += dict[char]
 
-                # Convert strings to bytes when possible.
-                if len(encoded) % 8 == 0:
-                    encoded_bits += string_to_bytes(encoded)
-                    encoded = ""
-
-                if len(encoded_bits) >= CHUNK_SIZE:
-                    fb.write(encoded_bits)
-                    encoded_bits = b""
+                if len(encoded) >= CHUNK_SIZE:
+                    fb.write(string_to_bytes(encoded))
 
 
 # Create a tree from a given shape consisting of 0's and 1's.
@@ -137,18 +135,18 @@ def tree_from_shape(br: BitReader, currentNode: Node) -> None:
 
 
 # Fill the leaves of a tree with given 8-bit characters.
-def fill_leaves(fb: BitReader, currentNode: Node) -> None:
+def fill_leaves(br: BitReader, currentNode: Node) -> None:
     if not currentNode.left or not currentNode.right:
-        bits = fb.read(8)
-        currentNode.char = chr(int(bits, 2))
+        code = int(br.read(16), 2)
+        currentNode.char = chr(code)
         return
 
-    fill_leaves(fb, currentNode.left)
-    fill_leaves(fb, currentNode.right)
+    fill_leaves(br, currentNode.left)
+    fill_leaves(br, currentNode.right)
 
 
 # Decode a text file encoded with Huffman coding.
-def decode(file: str) -> None:
+def decode(file: str, target: str = "") -> None:
     with open(file, "rb") as fb:
         root = Node()
         br = BitReader(fb, CHUNK_SIZE)
@@ -160,18 +158,20 @@ def decode(file: str) -> None:
         decoded = ""
         currentNode = root
 
-        with open(file.split(".")[0] + "_encoded.txt", "w") as f:
-            while True:
+        filename = target
+
+        if not filename:
+            filename = file.split(".")[0] + ".txt"
+
+        filesize = os.path.getsize(file) * 8
+
+        with open(filename, "w") as f:
+            while br.index < filesize:
                 # Skip extra 0's.
-                if len(br.buffer) * 8 - br.index <= 8 and extra >= 0:
+                if filesize - br.index == 8:
                     br.read(extra)
-                    extra = -1
 
                 next_bit = br.read(1)
-
-                if not next_bit:
-                    f.write(decoded)
-                    break
 
                 if next_bit == "0" and currentNode.left:
                     currentNode = currentNode.left
@@ -187,6 +187,4 @@ def decode(file: str) -> None:
                     f.write(decoded)
                     decoded = ""
 
-
-encode("testa.txt")
-decode("testa.bin")
+            f.write(decoded)
