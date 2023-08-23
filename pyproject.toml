@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "huffman vs lzw"
+version = "0.1.0"
+description = "Huffmand and LZW algorithms implemented and compared."
+authors = ["Marius Hasan"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10.12"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+coverage = "^7.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
