@@ -6,4 +6,5 @@ Huffman and Lempel-Ziv-Welch compression algorithms made from scratch in Python 
 
 [Specification](docs/specification.md)  
 [Implementation](docs/implementation.md)  
-[Testing](docs/testing.md)
+[Testing](docs/testing.md)  
+[Instructions](docs/instructions.md)
