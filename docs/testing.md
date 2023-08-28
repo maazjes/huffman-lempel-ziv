@@ -1,4 +1,4 @@
-## Overview
+# Testing
 
 I created unit tests for all functions with simple inputs and outputs that I calculated to be right by hand. The unit tests are made with native Python unittest library. The inputs are given as text or binary files and the outputs can be found from test_huffman.py and test_lzw.py. I also compared the speed and efficiency of both Huffman and LZW. The unit tests can be run with the command "python3 -m unittest".
 
