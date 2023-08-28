@@ -1,6 +1,6 @@
 # Huffman vs LZW
 
-Huffman and Lempel-Ziv-Welch compression algorithms made from scratch in Python and compared with eachother.
+Huffman and Lempel-Ziv-Welch compression algorithms written from scratch in Python and compared with each other.
 
 ## Documentation
 
