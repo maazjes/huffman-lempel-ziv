@@ -6,7 +6,7 @@ I created unit tests for all functions with simple inputs and outputs that I cal
 
 As we can see from the graph down below, LZW seems to be more efficient when file size increases. This is natural because LZW works by finding bigger and bigger patterns from the given text. The more there is text, the more these patterns will emerge.
 
-![Comparison of the compression efficiency of Huffman and LZW in graphical form.](./assets/huffmanvslzw.png)
+![Comparison of the compression efficiency of Huffman and LZW in graphical form.](./huffmanvslzw.png)
 
 ### Huffman
 
@@ -40,4 +40,4 @@ As we can see from the graph down below, LZW seems to be more efficient when fil
 
 ## Code coverage report
 
-![Screenshot of code coverage report generated with Coverage](./assets/coverage.png)
+![Screenshot of code coverage report generated with Coverage](./coverage.png)
