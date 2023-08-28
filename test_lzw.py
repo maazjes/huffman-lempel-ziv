@@ -1,6 +1,5 @@
 import unittest
 import lzw
-from util import string_to_bytes, bytes_to_string
 import os
 import filecmp
 
@@ -46,6 +45,11 @@ class TestLZW(unittest.TestCase):
                 "assets/test_decoded.txt",
                 shallow=False,
             )
+        )
+
+        self.assertTrue(
+            os.path.getsize("assets/test_encoded.bin")
+            < os.path.getsize("assets/test.txt")
         )
 
         os.remove("assets/test_decoded.txt")

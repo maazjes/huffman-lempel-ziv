@@ -160,5 +160,10 @@ class TestHuffman(unittest.TestCase):
             )
         )
 
+        self.assertTrue(
+            os.path.getsize("assets/test_encoded.bin")
+            < os.path.getsize("assets/test.txt")
+        )
+
         os.remove("assets/test_decoded.txt")
         os.remove("assets/test_encoded.bin")
